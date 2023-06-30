@@ -2,18 +2,15 @@
 # @Time : 2023/6/25 18:24
 # @Author: LeoN
 
-import os
-import sys
-import json
-import fire
-import gradio as gr
-import torch
+import os, sys, csv, fire, torch, argparse
 import pandas as pd
-import transformers
-from peft import PeftModel
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
-
 from prompter import Prompter, wikisql_prompt
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--device',type=int)
+args = parser.parse_args()
+device_num=args.device
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -26,11 +23,11 @@ try:
 except:  # noqa: E722
     pass
 
-model_weights_path='../../../Data/model/llama-7b-hf'
+model_weights_path='../../../share/LLaMA-hf/7B'
 df=pd.read_csv('dataset/wikisql/train.csv')
 prompter=Prompter('alpaca')
 cutoff_len = 256
-
+res_path='result'+str(device_num)+'.csv'
 
 def main(
     load_8bit: bool = False,
@@ -46,7 +43,7 @@ def main(
     ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
     prompter = Prompter(prompt_template)
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    tokenizer = LlamaTokenizer.from_pretrained(base_model,padding_side="left")
 
     def tokenize(prompt, add_eos_token=True):
         # there's probably a way to do this with the tokenizer settings
@@ -96,27 +93,40 @@ def main(
     model.config.eos_token_id = 2
 
     if not load_8bit:
-        model.half()  # seems to fix bugs for some users.
+        model.half() # seems to fix bugs for some users.
 
     model.eval()
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
+    prompts=[]
+    temp_rows=[]
     for index, line in df.iterrows():
-        # print(line['question'],line['table.header'],line['table.types'],line['sql.human_readable'])
-        prompt = wikisql_prompt(line['question'], line['table.header'], line['table.types'], line['sql.human_readable'])
-        print('prompt:\n'+prompt)
-        # user_prompt = prompter.generate_prompt(
-        #     line["instruction"], line["input"]
-        # )
-        # tokenized_user_prompt = tokenize(
-        #     prompt, add_eos_token=True
-        # )
-        generate_ids = model.generate(tokenizer(prompt, return_tensors="pt").input_ids, max_new_tokens=100)
+        if 28694<=index<=28699 or 35771<=index<35775:
+            continue
 
-        print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
-        print('-'*50)
-        print('\n')
+        prompt = wikisql_prompt(line['question'], line['table.header'], line['table.types'], line['sql.human_readable'])
+        prompts.append(prompt)
+        row = [line['idx'],prompt]
+        temp_rows.append(row)
+        if len(prompts)==5:
+            input_ids=tokenizer(prompts, return_tensors="pt",padding=True,max_length=cutoff_len).input_ids
+            if device == 'cuda':
+                input_ids=input_ids.cuda()
+
+            generate_ids = model.generate(input_ids, max_new_tokens=30, num_beams=3, do_sample=True)
+            generate_ids = generate_ids[:,input_ids.shape[1]:]
+            res=tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+
+            for i in range(5):
+                temp_rows[i].append(res[i])
+            with open(res_path,'a',newline='') as f:
+                csv.writer(f).writerows(temp_rows)
+            torch.cuda.empty_cache()
+            prompts=[]
+            temp_rows=[]
+
+
 
     # generate_ids=model.generate(inputs.input_ids)
     # print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])

@@ -56,12 +56,13 @@ def wikisql_prompt(question,header,table_type,sql):
     question=question.strip()
     prompt=\
 '''There is a table.
-The table header is
+The table header:
 {}
-The type of the table header is
+The type of the table header:
 {}
-If I want to query the question
-'{}'
-What is the sql?'''\
+Question: `{}`
+If I want to query the problem, write the SQL language.
+### the answer is pure SQL in a  line.
+Answer:'''\
     .format(header,table_type,question)
     return prompt
