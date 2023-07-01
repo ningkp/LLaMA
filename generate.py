@@ -105,7 +105,7 @@ def main(
         if 28694<=index<=28699 or 35771<=index<35775:
             continue
 
-        prompt = wikisql_prompt(line['question'], line['table.header'], line['table.types'], line['sql.human_readable'])
+        prompt = wikisql_prompt(line['question'], line['table.header'], line['table.types'])
         prompts.append(prompt)
         row = [line['idx'],prompt]
         temp_rows.append(row)

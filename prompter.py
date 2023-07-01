@@ -50,7 +50,7 @@ class Prompter(object):
     def get_response(self, output: str) -> str:
         return output.split(self.template["response_split"])[1].strip()
 
-def wikisql_prompt(question,header,table_type,sql):
+def wikisql_prompt(question,header,table_type):
     header=header[1:-1].replace("'","`")
     table_type=table_type[1:-1].replace("'","`")
     question=question.strip()
