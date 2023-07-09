@@ -66,3 +66,17 @@ If I want to query the problem, write the SQL language.
 Answer:'''\
     .format(header,table_type,question)
     return prompt
+
+def samsum_prompt(dialogue):
+    word_list=dialogue.split(' ')
+    if len(word_list)>100:
+        dialogue=''.join(word_list[:100])
+    prompt=\
+'''Below is a dialogue:
+###
+{}
+###
+Please summary this dialogue in one line briefly.
+###Summary:
+'''.format(dialogue)
+    return prompt

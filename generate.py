@@ -4,11 +4,12 @@
 
 import os, sys, csv, fire, torch, argparse
 import pandas as pd
+from peft import PeftModel
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
-from prompter import Prompter, wikisql_prompt
+from prompter import wikisql_prompt, samsum_prompt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=int)
+parser.add_argument('--device',type=str)
 args = parser.parse_args()
 device_num=args.device
 
@@ -24,17 +25,18 @@ except:  # noqa: E722
     pass
 
 model_weights_path='../../../share/LLaMA-hf/7B'
-df=pd.read_csv('dataset/wikisql/train.csv')
-prompter=Prompter('alpaca')
 cutoff_len = 256
-res_path='result'+str(device_num)+'.csv'
+res_path='result/generate/samsum/result'+device_num+'.csv'
+with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
+    rows=list(csv.reader(f))
+
 
 def main(
     load_8bit: bool = False,
     base_model: str = model_weights_path,
     lora_weights: str = "",
     prompt_template: str = "",  # The prompt template to use, will default to alpaca.
-    server_name: str = "127.0.0.1",  # Allows to listen on all interfaces by providing '0.
+    server_name: str = "127.0.0.1",  # Allows to listen on all interfaces by providing 0.
     share_gradio: bool = False,
 ):
     base_model = base_model or os.environ.get("BASE_MODEL", "")
@@ -42,7 +44,6 @@ def main(
         base_model
     ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
-    prompter = Prompter(prompt_template)
     tokenizer = LlamaTokenizer.from_pretrained(base_model,padding_side="left")
 
     def tokenize(prompt, add_eos_token=True):
@@ -74,6 +75,12 @@ def main(
             torch_dtype=torch.float16,
             device_map="auto",
         )
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                torch_dtype=torch.float16,
+            )
 
     elif device == "mps":
         model = LlamaForCausalLM.from_pretrained(
@@ -81,11 +88,24 @@ def main(
             device_map={"": device},
             torch_dtype=torch.float16,
         )
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                device_map={"": device},
+                torch_dtype=torch.float16,
+            )
+
     else:
         model = LlamaForCausalLM.from_pretrained(
             base_model, device_map={"": device}, low_cpu_mem_usage=True
         )
-
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                device_map={"": device},
+            )
 
     # unwind broken decapoda-research config
     model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
@@ -99,38 +119,31 @@ def main(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
+    result=[]
     prompts=[]
     temp_rows=[]
-    for index, line in df.iterrows():
-        if 28694<=index<=28699 or 35771<=index<35775:
-            continue
-
-        prompt = wikisql_prompt(line['question'], line['table.header'], line['table.types'])
+    for idx,dialogue,summary in rows:
+        prompt = samsum_prompt(dialogue)
         prompts.append(prompt)
-        row = [line['idx'],prompt]
+        row =[idx,prompt]
         temp_rows.append(row)
         if len(prompts)==5:
             input_ids=tokenizer(prompts, return_tensors="pt",padding=True,max_length=cutoff_len).input_ids
             if device == 'cuda':
                 input_ids=input_ids.cuda()
 
-            generate_ids = model.generate(input_ids, max_new_tokens=30, num_beams=3, do_sample=True)
+            generate_ids = model.generate(input_ids, max_new_tokens=40, num_beams=1, do_sample=True)
             generate_ids = generate_ids[:,input_ids.shape[1]:]
             res=tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-
             for i in range(5):
                 temp_rows[i].append(res[i])
-            with open(res_path,'a',newline='') as f:
-                csv.writer(f).writerows(temp_rows)
+                result.append(temp_rows[i])
             torch.cuda.empty_cache()
             prompts=[]
             temp_rows=[]
-
-
-
-    # generate_ids=model.generate(inputs.input_ids)
-    # print(tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0])
+    with open(res_path,mode='w',encoding='utf-8',newline='') as fp:
+        csv.writer(fp).writerows(result)
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

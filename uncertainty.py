@@ -24,7 +24,7 @@ def algo1_score(fp):
     return result
 
 if __name__ == '__main__':
-    with open('result/generate/result.csv','r',encoding='utf-8') as f:
+    with open('result/generate/wikisql/result.csv', 'r', encoding='utf-8') as f:
         result=algo1_score(f)
 
     with open('result/score/wikisql_algo1.csv','w',encoding='utf-8',newline='') as f:

@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-            
 # @Time : 2023/7/1 22:23
 # @Author: LeoN
-import csv
-import os
-import sys
-from typing import List
 
-import fire
-import torch
-import transformers
+import csv,os,sys,fire,torch,argparse,transformers
+from typing import List
 from sample import wiki_random_sampler,wiki_test_sampler,tokenize,wiki_active_sampler
 from datasets import load_dataset
+parser = argparse.ArgumentParser()
+parser.add_argument('--lora-dir',type=str)
+args = parser.parse_args()
 
 from peft import (
     LoraConfig,
@@ -25,11 +23,11 @@ def train(
     # model/data params
     base_model: str = "../../../share/LLaMA-hf/7B",  # the only required argument
     data_path: str = "./dataset/wikisql",
-    output_dir: str = "./al2-lora-alpaca",
+    output_dir: str = "./al-wiki",
     # training hyperparams
-    batch_size: int = 128,
-    micro_batch_size: int = 4,
-    num_epochs: int = 3,
+    batch_size: int = 32,
+    micro_batch_size: int = 2,
+    num_epochs: int = 20,
     learning_rate: float = 3e-4,
     cutoff_len: int = 256,
     val_set_size: int = 2000,
@@ -47,7 +45,7 @@ def train(
     wandb_run_name: str = "",
     wandb_watch: str = "",  # options: false | gradients | all
     wandb_log_model: str = "",  # options: false | true
-    resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
+    resume_from_checkpoint = args.lora_dir,  # either training checkpoint or final adapter
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
 ):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
@@ -111,54 +109,6 @@ def train(
 
     tokenizer.pad_token_id = 0
     tokenizer.padding_side = "left"  # Allow batched inference
-
-    # def tokenize(prompt, add_eos_token=True):
-    #     # there's probably a way to do this with the tokenizer settings
-    #     # but again, gotta move fast
-    #     result = tokenizer(
-    #         prompt,
-    #         truncation=True,
-    #         max_length=cutoff_len,
-    #         padding=False,
-    #         return_tensors=None,
-    #     )
-    #     if (
-    #         result["input_ids"][-1] != tokenizer.eos_token_id
-    #         and len(result["input_ids"]) < cutoff_len
-    #         and add_eos_token
-    #     ):
-    #         result["input_ids"].append(tokenizer.eos_token_id)
-    #         result["attention_mask"].append(1)
-    #
-    #     result["labels"] = result["input_ids"].copy()
-    #
-    #     return result
-
-    # def generate_and_tokenize_prompt(data_point):
-    #     full_prompt = prompter.generate_prompt(
-    #         data_point["instruction"],
-    #         data_point["input"],
-    #         data_point["output"],
-    #     )
-    #     tokenized_full_prompt = tokenize(full_prompt)
-    #     if not train_on_inputs:
-    #         user_prompt = prompter.generate_prompt(
-    #             data_point["instruction"], data_point["input"]
-    #         )
-    #         tokenized_user_prompt = tokenize(
-    #             user_prompt, add_eos_token=add_eos_token
-    #         )
-    #         user_prompt_len = len(tokenized_user_prompt["input_ids"])
-    #
-    #         if add_eos_token:
-    #             user_prompt_len -= 1
-    #
-    #         tokenized_full_prompt["labels"] = [
-    #             -100
-    #         ] * user_prompt_len + tokenized_full_prompt["labels"][
-    #             user_prompt_len:
-    #         ]  # could be sped up, probably
-    #     return tokenized_full_prompt
 
     model = prepare_model_for_int8_training(model)
 
