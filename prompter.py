@@ -73,10 +73,10 @@ def samsum_prompt(dialogue):
         dialogue=''.join(word_list[:100])
     prompt=\
 '''Below is a dialogue:
-###
 {}
-###
-Please summary this dialogue in one line briefly.
-###Summary:
-'''.format(dialogue)
+{}
+{}
+###Please summary this dialogue in one line briefly.
+Summary: '''\
+    .format('{',dialogue,'}')
     return prompt

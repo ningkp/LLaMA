@@ -4,10 +4,12 @@
 
 import csv,os,sys,fire,torch,argparse,transformers
 from typing import List
-from sample import wiki_random_sampler,wiki_test_sampler,tokenize,wiki_active_sampler
+from sample import *
 from datasets import load_dataset
 parser = argparse.ArgumentParser()
 parser.add_argument('--lora-dir',type=str)
+parser.add_argument('--data-dir',type=str)
+parser.add_argument('--output-dir',type=str)
 args = parser.parse_args()
 
 from peft import (
@@ -22,12 +24,12 @@ from transformers import LlamaForCausalLM, LlamaTokenizer
 def train(
     # model/data params
     base_model: str = "../../../share/LLaMA-hf/7B",  # the only required argument
-    data_path: str = "./dataset/wikisql",
-    output_dir: str = "./al-wiki",
+    data_path: str = args.data_dir,
+    output_dir: str = args.output_dir,
     # training hyperparams
-    batch_size: int = 32,
-    micro_batch_size: int = 2,
-    num_epochs: int = 20,
+    batch_size: int = 64,
+    micro_batch_size: int = 4,
+    num_epochs: int = 15,
     learning_rate: float = 3e-4,
     cutoff_len: int = 256,
     val_set_size: int = 2000,
@@ -122,16 +124,16 @@ def train(
     )
     model = get_peft_model(model, config)
 
-    with open('result/score/wikisql_algo1.csv','r',encoding='utf-8') as f:
+    with open('result/score/samsum_algo1.csv','r',encoding='utf-8') as f:
         reader=csv.reader(f)
         idx_list=[]
         for line in reader:
             idx_list.append(int(line[0]))
     with open(os.path.join(data_path,'train.csv'),'r',encoding='utf-8') as f:
-        train_data=wiki_active_sampler(f,idx_list,1000)
-        # train_data=wiki_random_sampler(f,1000)
+        train_data=samsum_active_sampler(f,idx_list,1000)
+        # train_data=samsum_random_sampler(f,1000)
     with open(os.path.join(data_path,'val.csv'),'r',encoding='utf-8') as f:
-        test_data=wiki_test_sampler(f)
+        test_data=samsum_test_sampler(f)
 
     train_data=train_data.shuffle().map(tokenize)
     test_data=test_data.shuffle().map(tokenize)

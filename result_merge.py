@@ -27,4 +27,4 @@ def merge(directory,num):
         writer.writerows(result_list)
 
 if __name__ == '__main__':
-    merge('result/generate',10)
+    merge('result/generate/samsum',10)
