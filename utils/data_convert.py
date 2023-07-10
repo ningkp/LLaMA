@@ -32,6 +32,6 @@ def json2csv(path,name):
         csv_writer.writerows(res)
 
 if __name__ == '__main__':
-    base_dir='dataset/SAMSum'
+    base_dir= '../dataset/SAMSum'
     for name in ['train','val','test']:
         json2csv(base_dir,name)
