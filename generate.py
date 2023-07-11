@@ -24,7 +24,7 @@ try:
 except:  # noqa: E722
     pass
 
-model_weights_path='../../../share/LLaMA-hf/7B'
+model_weights_path='../../share/LLaMA-hf/7B'
 cutoff_len = 256
 res_path='result/generate/samsum/result.csv'
 with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
