@@ -26,7 +26,7 @@ except:  # noqa: E722
 
 model_weights_path='../../../share/LLaMA-hf/7B'
 cutoff_len = 256
-res_path='result/generate/samsum/result'+device_num+'.csv'
+res_path='result/generate/samsum/result.csv'
 with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
     rows=list(csv.reader(f))
 
