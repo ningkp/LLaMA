@@ -144,7 +144,7 @@ def main(
     print_log("inference...")
     if args.dataset == "Chanel":
         comments = table["标题"][:1000]
-        batch = 32
+        batch = 4
         for i in range(0, len(comments), batch):
             prompt = chanel_prompt(comments[i:i+batch])
             input_ids = tokenizer(prompt, return_tensors="pt", padding=True, max_length=cutoff_len).input_ids
