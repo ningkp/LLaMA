@@ -7,6 +7,12 @@ import pandas as pd
 from peft import PeftModel
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
 from prompter import wikisql_prompt, samsum_prompt
+from tqdm import tqdm
+
+def print_log(log):
+    print("*" * 20)
+    print(log)
+    print("*" * 20)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device',type=str)
@@ -27,9 +33,9 @@ except:  # noqa: E722
 model_weights_path='../../share/LLaMA-hf/7B'
 cutoff_len = 256
 res_path='result/generate/samsum/result.csv'
+print_log("loading dataset...")
 with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
     rows=list(csv.reader(f))
-
 
 def main(
     load_8bit: bool = False,
@@ -68,6 +74,7 @@ def main(
 
         return result
 
+    print_log("loading model...")
     if device == "cuda":
         model = LlamaForCausalLM.from_pretrained(
             base_model,
@@ -122,7 +129,8 @@ def main(
     result=[]
     prompts=[]
     temp_rows=[]
-    for idx,dialogue,summary in rows:
+    print_log("inference...")
+    for idx,dialogue,summary in tqdm(rows):
         prompt = samsum_prompt(dialogue)
         prompts.append(prompt)
         row =[idx,prompt]
