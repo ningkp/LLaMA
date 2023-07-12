@@ -80,3 +80,13 @@ def samsum_prompt(dialogue):
 Summary: '''\
     .format('{',dialogue,'}')
     return prompt
+
+def chanel_prompt(batch_title):
+    content = ""
+    for i in range(len(batch_title)):
+        content += str(i)+"、"+batch_title[i]+"\n"
+    SYS = "\n### 请你扮演一个关键词提取专家。我将会提供大量用户有关香奈儿（Chanel）的内容，输出格式上要求关键词之间使用“|”分割，且不包含其它任何内容\n" \
+          "关键词："
+    prompt = "以下一批用户评论：\n" + content + SYS
+    print(prompt)
+    return prompt

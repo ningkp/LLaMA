@@ -15,8 +15,9 @@ def print_log(log):
     print("*" * 20)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=str)
-parser.add_argument('--model',type=str)
+parser.add_argument('--device',type=str, default="0")
+parser.add_argument('--model',type=str, default="LLaMA7B")
+parser.add_argument('--dataset',type=str, default="Chanel")
 args = parser.parse_args()
 device_num=args.device
 
@@ -36,8 +37,14 @@ if args.model == "LLaMA7B":
 cutoff_len = 256
 res_path='result/generate/samsum/result.csv'
 print_log("loading dataset...")
-with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
-    rows=list(csv.reader(f))
+
+if args.dataset == "SAMSum":
+    with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
+        rows=list(csv.reader(f))
+elif args.dataset == "Chanel":
+    table = pd.read_excel('dataset/Chanel/chanel_new.xlsx', keep_default_na=False)
+    print(table)
+    print(ca)
 
 def main(
     load_8bit: bool = False,
