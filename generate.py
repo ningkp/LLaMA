@@ -16,6 +16,7 @@ def print_log(log):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device',type=str)
+parser.add_argument('--model',type=str)
 args = parser.parse_args()
 device_num=args.device
 
@@ -30,7 +31,8 @@ try:
 except:  # noqa: E722
     pass
 
-model_weights_path='../../share/LLaMA-hf/7B'
+if args.model == "LLaMA7B":
+    model_weights_path='../../share/LLaMA-hf/7B'
 cutoff_len = 256
 res_path='result/generate/samsum/result.csv'
 print_log("loading dataset...")
