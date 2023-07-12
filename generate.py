@@ -16,7 +16,7 @@ def print_log(log):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device',type=str, default="0")
-parser.add_argument('--model',type=str, default="LLaMA7B")
+parser.add_argument('--model',type=str, default="LLaMA13B")
 parser.add_argument('--dataset',type=str, default="Chanel")
 args = parser.parse_args()
 device_num=args.device
@@ -34,6 +34,8 @@ except:  # noqa: E722
 
 if args.model == "LLaMA7B":
     model_weights_path='../../share/LLaMA-hf/7B'
+elif args.model == "LLaMA13B":
+    model_weights_path='../../share/LLaMA-hf/13B'
 cutoff_len = 256
 print_log("loading dataset...")
 
