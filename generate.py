@@ -6,7 +6,7 @@ import os, sys, csv, fire, torch, argparse
 import pandas as pd
 from peft import PeftModel
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
-from prompter import wikisql_prompt, samsum_prompt
+from prompter import wikisql_prompt, samsum_prompt, chanel_prompt
 from tqdm import tqdm
 
 def print_log(log):
@@ -35,16 +35,17 @@ except:  # noqa: E722
 if args.model == "LLaMA7B":
     model_weights_path='../../share/LLaMA-hf/7B'
 cutoff_len = 256
-res_path='result/generate/samsum/result.csv'
 print_log("loading dataset...")
 
 if args.dataset == "SAMSum":
     with open('dataset/SAMSum/train.csv','r',encoding='utf-8') as f:
         rows=list(csv.reader(f))
+    res_path = 'result/generate/samsum/result.csv'
 elif args.dataset == "Chanel":
     table = pd.read_excel('dataset/Chanel/chanel_new.xlsx', keep_default_na=False)
     print(table)
-    print(ca)
+    res_path = 'result/generate/Chanel/result.csv'
+    # print(ca)
 
 def main(
     load_8bit: bool = False,
@@ -139,25 +140,41 @@ def main(
     prompts=[]
     temp_rows=[]
     print_log("inference...")
-    for idx,dialogue,summary in tqdm(rows):
-        prompt = samsum_prompt(dialogue)
-        prompts.append(prompt)
-        row =[idx,prompt]
-        temp_rows.append(row)
-        if len(prompts)==5:
-            input_ids=tokenizer(prompts, return_tensors="pt",padding=True,max_length=cutoff_len).input_ids
+    if args.dataset == "Chanel":
+        comments = table["标题"][:1000]
+        batch = 32
+        for i in range(0, len(comments), batch):
+            prompt = chanel_prompt(comments[i:i+batch])
+            input_ids = tokenizer(prompt, return_tensors="pt", padding=True, max_length=cutoff_len).input_ids
             if device == 'cuda':
-                input_ids=input_ids.cuda()
+                input_ids = input_ids.cuda()
 
             generate_ids = model.generate(input_ids, max_new_tokens=40, num_beams=1, do_sample=True)
-            generate_ids = generate_ids[:,input_ids.shape[1]:]
-            res=tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-            for i in range(5):
-                temp_rows[i].append(res[i])
-                result.append(temp_rows[i])
+            generate_ids = generate_ids[:, input_ids.shape[1]:]
+            res = tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+            result.append(res)
             torch.cuda.empty_cache()
-            prompts=[]
-            temp_rows=[]
+
+    elif args.dataset == "SAMSum":
+        for idx,dialogue,summary in tqdm(rows):
+            prompt = samsum_prompt(dialogue)
+            prompts.append(prompt)
+            row =[idx,prompt]
+            temp_rows.append(row)
+            if len(prompts)==5:
+                input_ids=tokenizer(prompts, return_tensors="pt",padding=True,max_length=cutoff_len).input_ids
+                if device == 'cuda':
+                    input_ids=input_ids.cuda()
+
+                generate_ids = model.generate(input_ids, max_new_tokens=40, num_beams=1, do_sample=True)
+                generate_ids = generate_ids[:,input_ids.shape[1]:]
+                res=tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+                for i in range(5):
+                    temp_rows[i].append(res[i])
+                    result.append(temp_rows[i])
+                torch.cuda.empty_cache()
+                prompts=[]
+                temp_rows=[]
     with open(res_path,mode='w',encoding='utf-8',newline='') as fp:
         csv.writer(fp).writerows(result)
 
